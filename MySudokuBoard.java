@@ -1,22 +1,21 @@
 // Ebrima Ceesay
 // CS 143
-// HW #2: Sudoku #2 (isValid, isSolved)
-// HW #2 Core Topics: 2D arrays, Sets, Maps, Sudoku validation
-//
-// In this program a sudoku board validator is provided. 
+// HW #3: Sudoku #3 (solve)
+//  HW #3: Core Topics: recursive backtracking, 2D arrays, set/hashset   
 
 import java.util.*;
 import java.io.*;
 
-
-// It ensures that a 9x9 sudoku board meets the standard game rules: 
-// no duplicate digits along rows, columns or mini grids 3x3. 
-// It also checks whether the board is solved completely (has each of the digits in 1-9 each exhibiting nine times).
+//   This program define a class to hold a Sudoku board and has functions that:
+//   - Determine whether a board is solved or not
+//   - Puzzle recursively solved by backtracking
 public class MySudokuBoard {
+
     public final int SIZE = 9;
     protected char[][] myBoard;
-   // Pre: theFile is a valid filename to the path of the 9x9 sudoku file whose line contains 9 characters
-   // Post: Initializes myBoard from the contents of the file
+
+    // Pre: theFile is a valid filename to the path of the 9x9 sudoku file whose line contains 9 characters
+    // Post: Initializes myBoard from the contents of the file
     public MySudokuBoard(String theFile) {
         myBoard = new char[SIZE][SIZE];
         try {
@@ -32,99 +31,99 @@ public class MySudokuBoard {
             e.printStackTrace();
         }
     }
-    
-   // Pre: myBoard is a 9 x9 array of character initialized
-   // Post: Returns true when there are no invalid characters on the board and that the board follows the rules of the game of Sudoku
-    public boolean isValid() {
-        return isValidChars() && isValidRows() && isValidCols() && isValidGrids();
+    // Pre: myBoard initializes and is valid
+    // Post: It returns true on seeing that board is cleared out (all digits 1-9 appear in the board exactly 9 times)
+
+    public boolean isSolved() {
+        if (!isValid()) {
+            return false;
+        }
+
+        Map<Character, Integer> map = new HashMap<>();
+        for (char[] row : myBoard) {
+            for (char cell : row) {
+                if (map.containsKey(cell)) {
+                    map.put(cell, map.get(cell) + 1);
+                } else {
+                    map.put(cell, 1);
+                }
+            }
+        }
+        // info on Collections: https://docs.oracle.com/javase/8/docs/api/?java/util/Collections.html
+        return map.keySet().size() == 9 && Collections.frequency(map.values(), 9) == 9;
     }
-   // Pre: myBoard is full of characters
-   // Post: Returns true when each of the characters consists of 1-9 or '.'
-    private boolean isValidChars() {
-        Set < Character > checkChars = new HashSet < > (Arrays.asList('1', '2', '3', '4', '5', '6', '7', '8', '9', '.'));
-        for (int row = 0; row < SIZE; row++) {
-            for (int col = 0; col < SIZE; col++) {
-                if (!checkChars.contains(myBoard[row][col])) {
+    // Pre: myBoard is a 9 x9 array of character initialized
+    // Post: Returns true when there are no invalid characters on the board and that the board follows the rules of the game of Sudoku
+    public boolean isValid() {
+        // checks for bad data
+        for (char[] row : myBoard) {
+            for (char cell : row) {
+                if (cell != '.' && (cell < '1' || cell > '9')) {
                     return false;
                 }
             }
         }
-        return true;
-    }
 
-   // Pre: myBoard is valid 9x9 array of characters
-   // Post: Returns true if no rows contains duplicate digits 1-through 9
-    private boolean isValidRows() {
-        for (int row = 0; row < SIZE; row++) {
-            Set < Character > listSet = new HashSet < > ();
-            for (int col = 0; col < SIZE; col++) {
-                char ch = myBoard[row][col];
-                if (ch != '.') {
-                    if (listSet.contains(ch)) return false;
-                    listSet.add(ch);
+        // checks for row/col violations
+        for (int r = 0; r < myBoard.length; r++) {
+            Set<Character> trackingRow = new HashSet<>();
+            Set<Character> trackingCol = new HashSet<>();
+            for (int c = 0; c < myBoard[r].length; c++) {
+                // check for row violation
+                if (trackingRow.contains(myBoard[r][c])) {
+                    return false;
+                } else if (myBoard[r][c] != '.') {
+                    trackingRow.add(myBoard[r][c]);
+                }
+
+                // check for col violation
+                if (trackingCol.contains(myBoard[c][r])) {
+                    return false;
+                } else if (myBoard[c][r] != '.') {
+                    trackingCol.add(myBoard[c][r]);
                 }
             }
         }
-        return true;
-    }
 
-   // Pre: myBoard is valid 9x9 array of characters
-   // Post: Returns true if no columns contains duplicate digits 1-through 9
-    private boolean isValidCols() {
-        for (int col = 0; col < SIZE; col++) {
-            Set < Character > listSet = new HashSet < > ();
-            for (int row = 0; row < SIZE; row++) {
-                char getCh = myBoard[row][col];
-                if (getCh != '.') {
-                    if (listSet.contains(getCh)) return false;
-                    listSet.add(getCh);
-                }
-            }
-        }
-        return true;
-    }
-   // Pre: myBoard is valid 9x9 array of characters
-   // Post: Returns true if all 3x3 subgrids contains duplicate digits 1-through 9
-
-    private boolean isValidGrids() {
-        for (int sRow = 0; sRow < SIZE; sRow += 3) {
-            for (int sCol = 0; sCol < SIZE; sCol += 3) {
-                Set < Character > listSet = new HashSet < > ();
-                for (int row = 0; row < 3; row++) {
-                    for (int col = 0; col < 3; col++) {
-                        char getCh = myBoard[sRow + row][sCol + col];
-                        if (getCh != '.') {
-                            if (listSet.contains(getCh)) return false;
-                            listSet.add(getCh);
-                        }
+        // check for mini-squares
+        for (int square = 1; square <= 9; square++) {
+            char[][] mini = miniSquare(square);
+            Set<Character> trackingMini = new HashSet<>();
+            for (int r = 0; r < 3; r++) {
+                for (int c = 0; c < 3; c++) // check for mini violation
+                {
+                    if (trackingMini.contains(mini[r][c])) {
+                        return false;
+                    } else if (mini[r][c] != '.') {
+                        trackingMini.add(mini[r][c]);
                     }
                 }
             }
         }
+
+        // if there weren't any violations above...
         return true;
     }
-   // Pre: myBoard initializes and is valid
-   // Post: It returns true on seeing that board is cleared out (all digits 1-9 appear in the board exactly 9 times)
-    public boolean isSolved() {
-        if (!isValid()) return false;
+    // A helper method that returns the 3x3 mini-square numbered starting at 1 to the left to the right, top to bottom.
+    // pre: spot is in range 1-9
+    // post: Returns a 3x3 array of character representing the mini-square
 
-        Map < Character, Integer > count = new HashMap < > ();
-        for (int row = 0; row < SIZE; row++) {
-            for (int col = 0; col < SIZE; col++) {
-                char getCh = myBoard[row][col];
-                if (getCh == '.') return false;
-                count.put(getCh, count.getOrDefault(getCh, 0) + 1);
+    private char[][] miniSquare(int spot) {
+        char[][] mini = new char[3][3];
+        for (int r = 0; r < 3; r++) {
+            for (int c = 0; c < 3; c++) {
+                // whoa - wild! This took me a solid hour to figure out.
+                // This translates between the "spot" in the 9x9 Sudoku board
+                // and a new mini square of 3x3
+                mini[r][c] = myBoard[(spot - 1) / 3 * 3 + r][(spot - 1) % 3 * 3 + c];
             }
         }
-
-        for (char c = '1'; c <= '9'; c++) {
-            if (count.getOrDefault(c, 0) != 9) return false;
-        }
-
-        return true;
+        return mini;
     }
-   // Pre: myBoard initializes and is valid
-   // Post: String representation of the board returns
+    //Returns the string representation of the current board.
+    // pre: Board is initialized
+    // post: Displays a string that describes the 9x9 game layout
+
     public String toString() {
         String result = "My Board:\n\n";
         for (int row = 0; row < SIZE; row++) {
@@ -136,5 +135,5 @@ public class MySudokuBoard {
         return result;
     }
 
+   
 }
-
